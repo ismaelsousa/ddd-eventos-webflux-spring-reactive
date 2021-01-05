@@ -1,9 +1,10 @@
 package com.example.dddeventoswebflux.repository
 
 import com.example.dddeventoswebflux.domain.LastCoordinate
-import org.springframework.data.mongodb.repository.ReactiveMongoRepository
-import reactor.core.publisher.Mono
+import org.springframework.data.repository.kotlin.CoroutineCrudRepository
+import org.springframework.stereotype.Repository
 
-interface LastCoordinateRepository : ReactiveMongoRepository<LastCoordinate, String>{
-    fun getLastCoordinateByEquipment_Id(id:Int): Mono<LastCoordinate>
+@Repository
+interface LastCoordinateRepository : CoroutineCrudRepository<LastCoordinate, String> {
+   suspend fun getLastCoordinateByEquipment_Id(id:Int): LastCoordinate?
 }

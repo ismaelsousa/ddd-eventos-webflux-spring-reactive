@@ -1,9 +1,10 @@
 package com.example.dddeventoswebflux.repository
 
 import com.example.dddeventoswebflux.domain.Route
-import org.springframework.data.mongodb.repository.ReactiveMongoRepository
-import reactor.core.publisher.Mono
+import org.springframework.data.repository.kotlin.CoroutineCrudRepository
+import org.springframework.stereotype.Repository
 
-interface RouteRepository: ReactiveMongoRepository<Route,Int>{
-    fun getRouteByEquipment_Id(id:Int):Mono<Route>
+@Repository
+interface RouteRepository: CoroutineCrudRepository<Route,Int>{
+  suspend fun getRouteByEquipment_Id(id:Int):Route?
 }

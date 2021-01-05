@@ -28,27 +28,23 @@ class EventArrival(
      * 1. esta dentro do raio de atendimento e
      * 2. se essa e a coordenada anterior são iguais
      */
-    override fun processCoordinate(notificationDto: NotificationDto) {
+    override suspend fun processCoordinate(notificationDto: NotificationDto) {
         val lastCoordinate = notificationDto.lastCoordinate
         val coordinate = notificationDto.coordinate
         if (lastCoordinate.latitude == coordinate.latitude && lastCoordinate.longitude == coordinate.longitude) {
+            val route =  routeRepository.getRouteByEquipment_Id(notificationDto.coordinate.equipmentId)
 
-            routeRepository.getRouteByEquipment_Id(notificationDto.coordinate.equipmentId)
-                    .map {route-> Pair(filterListStops(coordinate = coordinate, stops = route.stops).toFlux(), route)}
-                    .flatMap { pair->
-                        pair.first.flatMap { stop ->
-                            arrivedStopRoute(pair.second,stop)
-                                    .flatMap{
-                                        registerEvent(EventType.ARRIVE, stop.id)
-                                    }
+            if(route != null){
+                filterListStops(coordinate = coordinate, stops = route.stops).forEach{ stop->
+                    arrivedStopRoute(route,stop)
+                    registerEvent(EventType.ARRIVE, stop.id)
+                }
 
-                        }.then()
-                    }.subscribe()
-
+            }
         }
     }
     
-    private fun arrivedStopRoute(route:Route, oldStop:Stop): Mono<Route> {
+    private suspend fun arrivedStopRoute(route:Route, oldStop:Stop): Route {
         val updatedStop = oldStop.copy(arrivalAt = Date())
         val indexOf = route.stops.indexOf(oldStop)
         route.stops.removeAt(indexOf)
@@ -56,13 +52,13 @@ class EventArrival(
         return routeRepository.save(route)
     }
 
-    private fun registerEvent(eventType: EventType, stopId: Int):Mono<Event>{
+    private suspend fun registerEvent(eventType: EventType, stopId: Int): Event {
         log.info("Driver Arrival on Stop [{}]", stopId)
         val newEvent = Event(eventType = eventType, `when` = Date(), stopId = stopId)
         return  eventRepository.save(newEvent)
     }
 
-    private fun filterListStops(coordinate: Coordinate, stops: List<Stop>) = stops.filter {stop->
+    private suspend fun filterListStops(coordinate: Coordinate, stops: List<Stop>) = stops.filter {stop->
         val distance = haversineDistance(stop.latitude, stop.longitude, coordinate.latitude, coordinate.longitude)
         stop.arrivalAt == null && distance <= geofence
     }

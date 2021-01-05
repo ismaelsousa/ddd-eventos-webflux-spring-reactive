@@ -5,5 +5,5 @@ const val geofence = 0.2 // 200 meters
 
 interface IEventsProcessor {
 
-    fun processCoordinate(notificationDto: NotificationDto)
+   suspend fun processCoordinate(notificationDto: NotificationDto)
 }

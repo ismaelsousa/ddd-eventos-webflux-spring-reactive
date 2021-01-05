@@ -1,7 +1,8 @@
 package com.example.dddeventoswebflux.repository
 
 import com.example.dddeventoswebflux.domain.Event
-import org.springframework.data.mongodb.repository.ReactiveMongoRepository
+import org.springframework.data.repository.kotlin.CoroutineCrudRepository
+import org.springframework.stereotype.Repository
 
-
-interface EventRepository: ReactiveMongoRepository<Event, String>
+@Repository
+interface EventRepository: CoroutineCrudRepository<Event, String>
