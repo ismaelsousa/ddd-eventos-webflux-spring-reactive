@@ -16,32 +16,45 @@ import org.springframework.stereotype.Component
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.switchIfEmpty
+import reactor.kotlin.core.publisher.toMono
 import java.time.Duration
 
 @Component
 class CoordinateProcessor(
         private val routeRepository: RouteRepository,
         private val lastCoordinateRepository: LastCoordinateRepository,
+
         private val eventArrival: EventArrival,
 ) {
 
     private val log = LoggerFactory.getLogger(CoordinateProcessor::class.java)
 
-    fun receiveCoordinate(coordinate: Coordinate): Mono<NotificationDto> {
-        log.info("Coordinate received: [{}]", coordinate)
+    fun receiveCoordinate(coordinate: Coordinate): Mono<Unit> {
+       // log.info("Coordinate received: [{}]", coordinate)
+
         return  routeRepository.getRouteByEquipment_Id(coordinate.equipmentId)
                 .flatMap { route->
                     lastCoordinateRepository.getLastCoordinateByEquipment_Id(coordinate.equipmentId)
                             .flatMap { lastCoordinate->
                                 val updatedLastCoordinate = lastCoordinate.copy(latitude = coordinate.latitude, longitude = coordinate.longitude, `when` = coordinate.datePing)
-                                lastCoordinateRepository.save(updatedLastCoordinate)
+                                lastCoordinateRepository.save(updatedLastCoordinate).flatMap {lastCoordinate->
+                                    eventArrival.processCoordinate(NotificationDto(coordinate, lastCoordinate)).toMono()
+                                }
+
+
                             }.switchIfEmpty{
+                                log.info("nao tinha")
                                 val newLasCoordinate = createLastCoordinate(coordinate.equipmentId, coordinate.latitude, coordinate.longitude, route)
-                                lastCoordinateRepository.save(newLasCoordinate)
+                                lastCoordinateRepository.save(newLasCoordinate).flatMap {lastCoordinate->
+                                    eventArrival.processCoordinate(NotificationDto(coordinate, lastCoordinate)).toMono()
+                                }
                             }
-                }.map { lastCoordinate ->
-                    NotificationDto(coordinate, lastCoordinate)
+                }.switchIfEmpty{
+                    routeRepository.getRouteByMobileEquipment_Id(coordinate.equipmentId).map { route->
+                        log.info("Mobile Coordinate received: [{}]", coordinate)
+                    }
                 }
+
     }
 
     @Scheduled(fixedDelay = 100000, initialDelay = 10000)
@@ -219,7 +232,8 @@ class CoordinateProcessor(
         Flux.fromIterable( mapper.readValue(myRoute, Array<Coordinate>::class.java).asList())
                 .delayElements(Duration.ofMillis(500))
                 .flatMap { coordinate->receiveCoordinate(coordinate) }
-                .map { notificationDto -> eventArrival.processCoordinate(notificationDto) }
                 .subscribe()
     }
 }
+
+

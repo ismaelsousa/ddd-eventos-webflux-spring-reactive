@@ -5,5 +5,5 @@ import org.springframework.data.mongodb.repository.ReactiveMongoRepository
 import reactor.core.publisher.Mono
 
 interface LastCoordinateMobileRepository: ReactiveMongoRepository<LastCoordinateMobile, String> {
-    fun getLastCoordinateMobileByMobileEquipment_Id(_id:String): Mono<LastCoordinateMobile>
+    fun getLastCoordinateMobileByMobileEquipment_Id(id:Int): Mono<LastCoordinateMobile>
 }
