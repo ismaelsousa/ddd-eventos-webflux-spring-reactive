@@ -1,6 +1,8 @@
 package com.example.dddeventoswebflux.stream
 
 import com.example.dddeventoswebflux.domain.Coordinate
+import com.example.dddeventoswebflux.domain.LastCoordinateMobile
+import com.example.dddeventoswebflux.domain.Route
 import com.example.dddeventoswebflux.domain.createLastCoordinate
 import com.example.dddeventoswebflux.repository.LastCoordinateRepository
 import com.example.dddeventoswebflux.repository.RouteRepository
@@ -9,6 +11,8 @@ import com.fasterxml.jackson.module.kotlin.KotlinModule
 
 import com.example.dddeventoswebflux.events.EventArrival
 import com.example.dddeventoswebflux.events.NotificationDto
+import com.example.dddeventoswebflux.events.NotificationMobileDTO
+import com.example.dddeventoswebflux.repository.LastCoordinateMobileRepository
 
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
@@ -18,44 +22,80 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.switchIfEmpty
 import reactor.kotlin.core.publisher.toMono
 import java.time.Duration
+import java.util.*
 
 @Component
 class CoordinateProcessor(
         private val routeRepository: RouteRepository,
         private val lastCoordinateRepository: LastCoordinateRepository,
-
+        private val lastCoordinateMobileRepository: LastCoordinateMobileRepository,
         private val eventArrival: EventArrival,
 ) {
 
     private val log = LoggerFactory.getLogger(CoordinateProcessor::class.java)
 
     fun receiveCoordinate(coordinate: Coordinate): Mono<Unit> {
-       // log.info("Coordinate received: [{}]", coordinate)
+        log.info("Coordinate received: [{}]", coordinate)
 
-        return  routeRepository.getRouteByEquipment_Id(coordinate.equipmentId)
-                .flatMap { route->
+        return routeRepository.getRouteByEquipment_Id(coordinate.equipmentId)
+                .flatMap { route ->
                     lastCoordinateRepository.getLastCoordinateByEquipment_Id(coordinate.equipmentId)
-                            .flatMap { lastCoordinate->
+                            .flatMap { lastCoordinate ->
                                 val updatedLastCoordinate = lastCoordinate.copy(latitude = coordinate.latitude, longitude = coordinate.longitude, `when` = coordinate.datePing)
-                                lastCoordinateRepository.save(updatedLastCoordinate).flatMap {lastCoordinate->
+                                lastCoordinateRepository.save(updatedLastCoordinate).flatMap { lastCoordinate ->
                                     eventArrival.processCoordinate(NotificationDto(coordinate, lastCoordinate)).toMono()
                                 }
 
 
-                            }.switchIfEmpty{
+                            }.switchIfEmpty {
                                 log.info("nao tinha")
                                 val newLasCoordinate = createLastCoordinate(coordinate.equipmentId, coordinate.latitude, coordinate.longitude, route)
-                                lastCoordinateRepository.save(newLasCoordinate).flatMap {lastCoordinate->
+                                lastCoordinateRepository.save(newLasCoordinate).flatMap { lastCoordinate ->
                                     eventArrival.processCoordinate(NotificationDto(coordinate, lastCoordinate)).toMono()
                                 }
                             }
-                }.switchIfEmpty{
-                    routeRepository.getRouteByMobileEquipment_Id(coordinate.equipmentId).map { route->
-                        log.info("Mobile Coordinate received: [{}]", coordinate)
-                    }
-                }
+                }.switchIfEmpty {
+                    routeRepository.getRouteByMobileEquipment_Id(coordinate.equipmentId).flatMap { route ->
 
+                        lastCoordinateMobileRepository.getLastCoordinateMobileByMobileEquipment_Id(coordinate.equipmentId).flatMap { lastCoordinateMobile ->
+                            val updateLastMobile = lastCoordinateMobile.copy(
+                                    `when` = Date(),
+                                    latitude = coordinate.latitude,
+                                    longitude = coordinate.longitude,
+                            )
+                            lastCoordinateMobileRepository.save(updateLastMobile).flatMap { lastCoordinateMobile ->
+                                log.info("CRIOU LAST MOBILE")
+                                lastCoordinateRepository.getLastCoordinateByEquipment_Id(route.equipment.id).flatMap {
+                                    NotificationMobileDTO(lastCoordinateMobile, it)
+                                    eventArrival.processCoordinate(NotificationDto(coordinate, it)).toMono()
+                                }
+                            }
+                        }.switchIfEmpty {
+                            val newLastMobi = LastCoordinateMobile(
+                                    _id = null,
+                                    mobileEquipment = route.mobileEquipment,
+                                    latitude = coordinate.latitude,
+                                    longitude = coordinate.longitude,
+                                    `when` = Date(),
+                                    routeId = route.id
+                            )
+                            lastCoordinateMobileRepository.save(newLastMobi).flatMap { lastCoordinateMobile ->
+                                log.info("CRIOU LAST MOBILE EM BAICO")
+                                lastCoordinateRepository.getLastCoordinateByEquipment_Id(route.equipment.id).flatMap {
+                                    NotificationMobileDTO(lastCoordinateMobile, it)
+                                    eventArrival.processCoordinate(NotificationDto(coordinate, it)).toMono()
+                                }
+                            }
+
+                        }
+
+                    }
+
+
+                }
     }
+
+
 
     @Scheduled(fixedDelay = 100000, initialDelay = 10000)
     fun consumeCoordinates(){
