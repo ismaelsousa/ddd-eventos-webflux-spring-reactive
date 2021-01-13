@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 
 import com.example.dddeventoswebflux.events.EventArrival
+import com.example.dddeventoswebflux.events.EventAwayEquipment
 import com.example.dddeventoswebflux.events.NotificationDto
 import com.example.dddeventoswebflux.events.NotificationMobileDTO
 import com.example.dddeventoswebflux.repository.LastCoordinateMobileRepository
@@ -30,25 +31,27 @@ class CoordinateProcessor(
         private val lastCoordinateRepository: LastCoordinateRepository,
         private val lastCoordinateMobileRepository: LastCoordinateMobileRepository,
         private val eventArrival: EventArrival,
+        private val eventAwayEquipment: EventAwayEquipment,
 ) {
 
     private val log = LoggerFactory.getLogger(CoordinateProcessor::class.java)
 
-    fun receiveCoordinate(coordinate: Coordinate): Mono<Unit> {
+    fun receiveCoordinate(coordinate: Coordinate) {
         log.info("Coordinate received: [{}]", coordinate)
 
-        return routeRepository.getRouteByEquipment_Id(coordinate.equipmentId)
+         routeRepository.getRouteByEquipment_Id(coordinate.equipmentId)
                 .flatMap { route ->
                     lastCoordinateRepository.getLastCoordinateByEquipment_Id(coordinate.equipmentId)
                             .flatMap { lastCoordinate ->
                                 val updatedLastCoordinate = lastCoordinate.copy(latitude = coordinate.latitude, longitude = coordinate.longitude, `when` = coordinate.datePing)
                                 lastCoordinateRepository.save(updatedLastCoordinate).flatMap { lastCoordinate ->
+                                    log.info("UPDATE LASTCOORDINATE")
                                     eventArrival.processCoordinate(NotificationDto(coordinate, lastCoordinate)).toMono()
                                 }
-
-
                             }.switchIfEmpty {
-                                log.info("nao tinha")
+                                log.info("************************")
+                                log.info("NAO TINHA LASTCOORDINATE")
+                                log.info("************************")
                                 val newLasCoordinate = createLastCoordinate(coordinate.equipmentId, coordinate.latitude, coordinate.longitude, route)
                                 lastCoordinateRepository.save(newLasCoordinate).flatMap { lastCoordinate ->
                                     eventArrival.processCoordinate(NotificationDto(coordinate, lastCoordinate)).toMono()
@@ -66,7 +69,7 @@ class CoordinateProcessor(
                             lastCoordinateMobileRepository.save(updateLastMobile).flatMap { lastCoordinateMobile ->
                                 log.info("CRIOU LAST MOBILE")
                                 lastCoordinateRepository.getLastCoordinateByEquipment_Id(route.equipment.id).flatMap {
-                                    NotificationMobileDTO(lastCoordinateMobile, it)
+                                    eventAwayEquipment.processEvent(NotificationMobileDTO(lastCoordinateMobile, it))
                                     eventArrival.processCoordinate(NotificationDto(coordinate, it)).toMono()
                                 }
                             }
@@ -80,9 +83,14 @@ class CoordinateProcessor(
                                     routeId = route.id
                             )
                             lastCoordinateMobileRepository.save(newLastMobi).flatMap { lastCoordinateMobile ->
-                                log.info("CRIOU LAST MOBILE EM BAICO")
+                                log.info("***************************")
+                                log.info(" CRIOU LASTMOBILE EM BANCO")
+                                log.info("***************************")
                                 lastCoordinateRepository.getLastCoordinateByEquipment_Id(route.equipment.id).flatMap {
-                                    NotificationMobileDTO(lastCoordinateMobile, it)
+                                    log.info("***************************************")
+                                    log.info(" ENVIADO LASTMOBILE PARA PROCESSAMENTO")
+                                    log.info("***************************************")
+                                    eventAwayEquipment.processEvent(NotificationMobileDTO(lastCoordinateMobile, it))
                                     eventArrival.processCoordinate(NotificationDto(coordinate, it)).toMono()
                                 }
                             }
@@ -92,7 +100,7 @@ class CoordinateProcessor(
                     }
 
 
-                }
+                }.subscribe()
     }
 
 
@@ -271,7 +279,7 @@ class CoordinateProcessor(
 
         Flux.fromIterable( mapper.readValue(myRoute, Array<Coordinate>::class.java).asList())
                 .delayElements(Duration.ofMillis(500))
-                .flatMap { coordinate->receiveCoordinate(coordinate) }
+                .map { coordinate->receiveCoordinate(coordinate) }
                 .subscribe()
     }
 }
