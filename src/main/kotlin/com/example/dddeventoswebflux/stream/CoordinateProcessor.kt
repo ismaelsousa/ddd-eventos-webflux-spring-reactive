@@ -37,7 +37,7 @@ class CoordinateProcessor(
     private val log = LoggerFactory.getLogger(CoordinateProcessor::class.java)
 
     fun receiveCoordinate(coordinate: Coordinate) {
-        log.info("Coordinate received: [{}]", coordinate)
+      //  log.info("Coordinate received: [{}]", coordinate)
 
          routeRepository.getRouteByEquipment_Id(coordinate.equipmentId)
                 .flatMap { route ->
@@ -45,13 +45,13 @@ class CoordinateProcessor(
                             .flatMap { lastCoordinate ->
                                 val updatedLastCoordinate = lastCoordinate.copy(latitude = coordinate.latitude, longitude = coordinate.longitude, `when` = coordinate.datePing)
                                 lastCoordinateRepository.save(updatedLastCoordinate).flatMap { lastCoordinate ->
-                                    log.info("UPDATE LASTCOORDINATE")
+                              //      log.info("UPDATE LASTCOORDINATE")
                                     eventArrival.processCoordinate(NotificationDto(coordinate, lastCoordinate)).toMono()
                                 }
                             }.switchIfEmpty {
-                                log.info("************************")
-                                log.info("NAO TINHA LASTCOORDINATE")
-                                log.info("************************")
+                            //    log.info("************************")
+                             //   log.info("NAO TINHA LASTCOORDINATE")
+                            //    log.info("************************")
                                 val newLasCoordinate = createLastCoordinate(coordinate.equipmentId, coordinate.latitude, coordinate.longitude, route)
                                 lastCoordinateRepository.save(newLasCoordinate).flatMap { lastCoordinate ->
                                     eventArrival.processCoordinate(NotificationDto(coordinate, lastCoordinate)).toMono()
@@ -67,7 +67,7 @@ class CoordinateProcessor(
                                     longitude = coordinate.longitude,
                             )
                             lastCoordinateMobileRepository.save(updateLastMobile).flatMap { lastCoordinateMobile ->
-                                log.info("CRIOU LAST MOBILE")
+                           //     log.info("CRIOU LAST MOBILE")
                                 lastCoordinateRepository.getLastCoordinateByEquipment_Id(route.equipment.id).flatMap {
                                     eventAwayEquipment.processEvent(NotificationMobileDTO(lastCoordinateMobile, it))
                                     eventArrival.processCoordinate(NotificationDto(coordinate, it)).toMono()
@@ -83,13 +83,13 @@ class CoordinateProcessor(
                                     routeId = route.id
                             )
                             lastCoordinateMobileRepository.save(newLastMobi).flatMap { lastCoordinateMobile ->
-                                log.info("***************************")
-                                log.info(" CRIOU LASTMOBILE EM BANCO")
-                                log.info("***************************")
+                            //    log.info("***************************")
+                             //   log.info(" CRIOU LASTMOBILE EM BANCO")
+                             //   log.info("***************************")
                                 lastCoordinateRepository.getLastCoordinateByEquipment_Id(route.equipment.id).flatMap {
-                                    log.info("***************************************")
-                                    log.info(" ENVIADO LASTMOBILE PARA PROCESSAMENTO")
-                                    log.info("***************************************")
+                            //        log.info("***************************************")
+                             //       log.info(" ENVIADO LASTMOBILE PARA PROCESSAMENTO")
+                              //      log.info("***************************************")
                                     eventAwayEquipment.processEvent(NotificationMobileDTO(lastCoordinateMobile, it))
                                     eventArrival.processCoordinate(NotificationDto(coordinate, it)).toMono()
                                 }
