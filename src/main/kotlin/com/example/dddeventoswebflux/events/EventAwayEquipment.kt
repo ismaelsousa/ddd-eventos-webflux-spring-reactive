@@ -64,6 +64,7 @@ class EventAwayEquipment(
                             notificationMobileDTO.lastCoordinate.latitude,
                             notificationMobileDTO.lastCoordinate.longitude,
                     )
+
                     // Se não está em uma parada
                     distanceStop >= geoFence
                 }.map {stop ->
@@ -72,7 +73,7 @@ class EventAwayEquipment(
                     //  A partir daqui é necessário criar um alerta
 
                     //awayEquipmentRepository.getAwayEquipmentByRouteId(notificationMobileDTO.lastCoordinate.routeId)
-                    awayEquipmentRepository.getAwayEquipmentByRouteId(notificationMobileDTO.lastCoordinate.routeId).flatMap {away->
+                    awayEquipmentRepository.getTopAwayEquipmentByRouteId(notificationMobileDTO.lastCoordinate.routeId).flatMap {away->
                         log.info("Buscou por um equipamento  ${away}")
                         // Se data que awayEquip >= 10 min
                         // NewEvent (Danger)
@@ -90,7 +91,7 @@ class EventAwayEquipment(
                                 &&
                                 (currentDate.hours >= dateAway.hours || currentDate.seconds   >= dateAway.seconds )
                         ){
-                            if(currentDate.seconds - dateAway.seconds >= 10){ //2:10
+                            if(currentDate.seconds - dateAway.seconds >= 2){ //2:10
                                 // throw event
                                 log.info("===============================")
                                 log.info("|    ALERTA DE PERIGO ENVIADO |")
@@ -100,7 +101,7 @@ class EventAwayEquipment(
                             }else{
                                 // criar awayEquipment
                                 log.info("=============================")
-                                log.info("|   POSSIVEL PERIGO - AWAY   |")
+                                log.info("|   POSSIVEL PERIGO - AWAY 1   |")
                                 log.info("=============================\n")
                                 val newAwayEquipment = AwayEquipment(null, notificationMobileDTO.lastCoordinate.routeId, `when` = Date()) //2:00
                                 awayEquipmentRepository.save(newAwayEquipment).then()
@@ -126,13 +127,13 @@ class EventAwayEquipment(
             }.subscribe()
         }else{
             // Limpar último eventoAway
-            awayEquipmentRepository.getAwayEquipmentByRouteId(notificationMobileDTO.lastCoordinate.routeId).map { lastAwayEquipment->
+            awayEquipmentRepository.getTopAwayEquipmentByRouteId(notificationMobileDTO.lastCoordinate.routeId).map { lastAwayEquipment->
                 log.info("================================")
                 log.info("| MOTORISTA VOLTOU AO VEÍCULO  |")
                 log.info("===============================\n")
                 lastAwayEquipment._id?.let { awayEquipmentRepository.deleteById(it).then() }
 
-            }
+            }.subscribe()
 
         }
 
