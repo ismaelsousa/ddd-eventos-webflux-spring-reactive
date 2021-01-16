@@ -67,7 +67,8 @@
 ## Logs
 
 <p align='center'>
- <img src='https://user-images.githubusercontent.com/28990749/102723122-da5fe500-42ba-11eb-941d-a0ae49786c54.png'/>
+ <img src='https://user-images.githubusercontent.com/28990749/104813635-3a18b580-57bf-11eb-8b7d-cb9989772320.png'/>
 </p>
+
 
 
