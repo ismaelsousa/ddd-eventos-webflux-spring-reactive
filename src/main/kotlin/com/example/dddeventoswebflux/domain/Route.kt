@@ -8,6 +8,7 @@ import java.util.*
 data class Route(
         @Id val id: Int,
         val equipment: Equipment,
+        val mobileEquipment: Equipment,
         val name: String,
         val stops: MutableList<Stop>,
         val datePlan: Date

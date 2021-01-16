@@ -10,5 +10,5 @@ data class Event(
         @Id val _id: String? = null,
         val eventType: EventType,
         val `when`: Date = Date(),
-        val stopId: Int
+        val stopId: Int? = null
 )
