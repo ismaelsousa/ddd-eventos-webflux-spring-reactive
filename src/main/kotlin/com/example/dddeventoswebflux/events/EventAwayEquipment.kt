@@ -34,7 +34,7 @@ class EventAwayEquipment(
                 notificationMobileDTO.lastCoordinateMobile.longitude,
         )
 
-        if(distance >= 0.05){
+        if(distance >= geoFence){
             /*
                Tratar caso em que o motorista está na hora de almoço
                Ou tempo livre
@@ -89,7 +89,7 @@ class EventAwayEquipment(
                                  &&
                                  (currentDate.hours >= dateAway.hours || currentDate.seconds   >= dateAway.seconds )
                          ){
-                             if(currentDate.seconds - dateAway.seconds >= 2){ //2:10 COLOQUEI 2 PARA CONSEGUIR SIMULAR MAS SE COLOCAR 10 E TROCAR SECUNDOS POR MIN VAI FUNCIONAR
+                             if(currentDate.minutes - dateAway.minutes >= 10){ // COLOQUEI 2 E TROQUE MINUTO PARA SEGUNDOS PARA CONSEGUIR SIMULAR
                                  // throw event
                                  log.info("===============================")
                                  log.info("|    ALERTA DE PERIGO ENVIADO |")
