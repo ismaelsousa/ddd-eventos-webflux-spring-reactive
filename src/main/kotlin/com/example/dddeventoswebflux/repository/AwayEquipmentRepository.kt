@@ -6,4 +6,5 @@ import reactor.core.publisher.Mono
 
 interface AwayEquipmentRepository:ReactiveMongoRepository<AwayEquipment, String> {
     fun getTopAwayEquipmentByRouteId(id:Int): Mono<AwayEquipment>
+    fun getAwayEquipmentByRouteId(id:Int): Mono<AwayEquipment>
 }
